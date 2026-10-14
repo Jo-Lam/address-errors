@@ -1,0 +1,74 @@
+{
+ "discovery_dir": "discovery/v1_20261012",
+ "taxonomy_v1": "taxonomy/mechanisms.yaml",
+ "councils": [
+  {
+   "name": "wigan",
+   "reference": "reference/ngd_20261001/wigan",
+   "pairs": "mined_error_pairs/v2_20261012/pairs_wigan.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/wigan/clean_records.csv",
+   "epoch": "2025-11",
+   "alignment": "discovery",
+   "background_weight": 38.07875,
+   "core_pairs": true,
+   "postcode_model": true
+  },
+  {
+   "name": "bradford",
+   "reference": "reference/ngd_20261001/bradford",
+   "pairs": "mined_error_pairs/v2_20261012/pairs_bradford.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/bradford/clean_records.csv",
+   "epoch": "2025-12",
+   "alignment": "discovery",
+   "background_weight": 52.92925,
+   "core_pairs": true,
+   "postcode_model": false
+  },
+  {
+   "name": "leeds",
+   "reference": "reference/ngd_20261001/leeds",
+   "pairs": "mined_error_pairs/v2_20261012/pairs_leeds.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/leeds/clean_records.csv",
+   "epoch": "2024-10",
+   "alignment": "discovery",
+   "background_weight": 89.37525,
+   "core_pairs": true,
+   "postcode_model": false
+  },
+  {
+   "name": "basingstoke",
+   "reference": "reference/ngd_20261001_v2_new_councils/basingstoke",
+   "pairs": "mined_error_pairs/v3_basingstoke_20261012/pairs_basingstoke.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/basingstoke/clean_records.csv",
+   "epoch": "2025",
+   "alignment": "separate",
+   "background_weight": null,
+   "core_pairs": false,
+   "postcode_model": true
+  },
+  {
+   "name": "derby",
+   "reference": "reference/ngd_20261001_v2_new_councils/derby",
+   "pairs": "external_test/runs/derby/pairs_real.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/derby/clean_records.csv",
+   "epoch": "unknown",
+   "alignment": "separate",
+   "background_weight": null,
+   "core_pairs": false,
+   "postcode_model": true,
+   "raw_from_joined": true
+  },
+  {
+   "name": "cornwall",
+   "reference": "reference/ngd_20261001_v2_new_councils/cornwall",
+   "pairs": "external_test/runs/cornwall/pairs_real.csv.gz",
+   "clean_records": "council_data/clean_v1_20261012/cornwall/clean_records.csv",
+   "epoch": "2025",
+   "alignment": "separate",
+   "background_weight": null,
+   "core_pairs": false,
+   "postcode_model": true,
+   "raw_from_joined": true
+  }
+ ]
+}

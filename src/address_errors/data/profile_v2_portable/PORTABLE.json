@@ -1,0 +1,15 @@
+{
+ "portable": true,
+ "exported_from": "profile/fitted_v2_20261012",
+ "profile_id": "uprn_corruption_profile_v2_20261012",
+ "removed": [
+  "text at /core/realisation_hints/PN3:number_replaced/note",
+  "council-level entries for basingstoke (re-use terms unconfirmed)",
+  "per-street and per-sector lookups (locality_other_by_usrn, street_variant_by_usrn, locality_other_by_sector)"
+ ],
+ "kept_needs_review": [
+  "style_extras.county_by_postcode_district: county words by postcode district, aggregated, counts >= 10",
+  "core.intensity_sensitivity_band: development range of council intensity, all development councils included"
+ ],
+ "note": "Pooled and stratum rates were fitted on all development councils, including basingstoke. Check its re-use terms before publishing this file."
+}

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "address-errors"
+version = "0.1.0"
+description = "Tunable generator of realistic UK address recording errors with known UPRNs, and the pipeline to fit one"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "Joseph Lam", email = "joseph.lam@ucl.ac.uk"}]
+keywords = ["address matching", "UPRN", "record linkage", "synthetic data", "data quality"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = []          # the corruptor itself is standard library only
+
+[project.optional-dependencies]
+pipeline = ["pandas>=1.5", "numpy", "duckdb>=0.9", "rapidfuzz>=3", "PyYAML", "scipy", "scikit-learn"]
+evaluate = ["pandas>=1.5", "numpy", "duckdb>=0.9", "rapidfuzz>=3", "PyYAML", "lightgbm", "scikit-learn"]
+test = ["pytest"]
+
+[project.scripts]
+address-errors = "address_errors.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+address_errors = ["data/*/*.json", "data/example/*.csv", "pipeline/study_general/*.json", "pipeline/study_general/*.md"]
