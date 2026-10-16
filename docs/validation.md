@@ -1,8 +1,23 @@
 # Validation and code provenance
 
-The package was ported from the study's code, not rewritten. Every check below compares it with that code on the
-study's development data; the files are in `package/validation/`. How well the generator itself matches real
-records (the realism check and the external test) is summarised in the README, "How well it works".
+The package was ported from the study's code. This document records checks
+performed during that port and identifies the source of the package modules.
+
+The regression checks below compare package output with the study implementation
+on study data. They assess implementation equivalence under the tested
+configurations; they do not establish that generated addresses reproduce real
+recording errors accurately.
+
+The supporting regression reports and study inputs are retained in the study
+workspace under `package/validation/`. That directory is not included in the
+public repository or distributed package. Paths to those reports below are
+provenance references, not downloadable files. Consequently, users cannot
+independently reproduce these study-data checks from the public package alone.
+
+The generator's empirical realism assessments, including their limitations and
+external-test results, are summarised in the README under “How well it works”.
+Results belong to the profile and generator configuration evaluated; they
+should not automatically be attributed to later releases or modified settings.
 
 ## Checks against the study code
 
@@ -13,7 +28,7 @@ records (the realism check and the external test) is summarised in the README, "
   portable copy was scanned for every three-word sequence in Derby's (128,620) and Cornwall's (388,552) real strings:
   none from Derby; four from Cornwall, all generic ("LOWER GROUND FLOOR", "LOWER GROUND FLR", "SECOND FLOOR 1",
   "OUT OF THE"), as the external test found for the frozen profile.
-- **Latest rerun, 13 October 2026, after the documentation and pipeline changes:**
+- **Study re-run, 13 October 2026, after the documentation and pipeline changes:**
   `recheck_frozen_regression_20261013.json`, `recheck_frozen_pooled_regression_20261013.json` (frozen profile vs
   `generator_v3.py` SHA-256 `06addb88…50d6`, council rates and pooled) and `recheck_v2_regression_20261013.json`
   (profile v2 vs run 3b): identical on all 167,374 held-out records in each.
@@ -21,7 +36,7 @@ records (the realism check and the external test) is summarised in the README, "
   20261012 and the postcode layer off, the package gives **identical output** to the prototype v3 generator
   (`prototype_loop/code/generator_v3.py`), both rerun and as stored in `prototype_loop/run_v3_20261013`, on all
   167,374 held-out records, including the collision verify step (249 records).
-- `frozen_regression_20261013.json` and `frozen_pooled_regression_20261013.json` (current): the frozen
+- `frozen_regression_20261013.json` and `frozen_pooled_regression_20261013.json`: the frozen
   profile `profile/frozen_20261013` against `generator_v3.py` SHA-256 `06addb88…50d6`: identical on all 167,374
   held-out records, with council rates and in the pooled external-test setting.
 - `v3e_run6_regression_20261013.json` and `v3e_run6_pooled_regression_20261013.json`: against
