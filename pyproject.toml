@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "address-errors"
-version = "0.1.0"
-description = "Tunable generator of realistic UK address recording errors with known UPRNs, and the pipeline to fit one"
+version = "0.1.1"
+description = "Tunable, realistic UK address recording errors for your own addresses (no UPRN or OS data needed), with a labelled truth table for benchmarking"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Joseph Lam", email = "joseph.lam@ucl.ac.uk"}]
-keywords = ["address matching", "UPRN", "record linkage", "synthetic data", "data quality"]
+keywords = ["address matching", "record linkage", "synthetic data", "benchmark", "data quality", "UPRN"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -17,6 +17,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 dependencies = []          # the corruptor itself is standard library only
+
+[project.urls]
+Homepage = "https://github.com/Jo-Lam/address-errors"
+Documentation = "https://github.com/Jo-Lam/address-errors/blob/main/README.md"
+"Fitting a profile" = "https://github.com/Jo-Lam/address-errors/blob/main/docs/pipeline.md"
+Validation = "https://github.com/Jo-Lam/address-errors/blob/main/docs/validation.md"
 
 [project.optional-dependencies]
 pipeline = ["pandas>=1.5", "numpy", "duckdb>=0.9", "rapidfuzz>=3", "PyYAML", "scipy", "scikit-learn"]

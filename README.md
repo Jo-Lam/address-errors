@@ -1,108 +1,125 @@
 # address-errors
 
-A tunable generator of **realistic UK address recording errors** with known UPRNs, plus the pipeline that learned
-it, so anyone with their own messy address data can repeat the process.
+Generate tunable, realistic UK address recording errors from your own structured addresses, using bundled learned
+error profiles. **No UPRN and no OS data are needed to apply corruption.** Keep your own record identifiers and the
+output is a labelled synthetic benchmark: every corrupted string says which input record it came from, which errors
+were requested, which were applied and which could not be.
 
-Clean canonical addresses (OS NGD / AddressBase-style components) go in. Recorded-style addresses come out, with a
-truth table that says which property each string describes, which UPRN it carries, which errors were requested
-and applied, and whether the result collides with another real address. The use it was built for is labelled
-training and test data for address-to-UPRN matchers.
-
-Status, 14 October 2026: **version 0.1.0**. Two profiles are bundled:
-
-- **`all6` (the default):** fitted on all six councils the study has (Wigan, Bradford, Leeds, Basingstoke, Derby and
-  Cornwall), after the external test was spent. It has no untouched test of its own; its check is
-  leave-one-council-out (see [How well it works](#how-well-it-works)).
-- **`frozen`:** the profile frozen before the external test (`profile/frozen_20261013`, see `profile/FROZEN.md`),
-  fitted on the four development councils only. The external-test results belong to this profile; load it with
-  `Profile.load('frozen')`.
-
-The package reproduces the study's generator exactly on both. **Not yet for publication outside the study:**
-Basingstoke's re-use terms are unconfirmed (see [Data, licences and disclosure](#data-licences-and-disclosure)).
-
-Contents: [Setup](#setup) · [Quick example](#quick-example) · [Your own addresses](#your-own-addresses) ·
-[Controls](#controls) · [Output](#output-truth-table-and-audit) · [What it reproduces](#what-it-reproduces) ·
-[How well it works](#how-well-it-works) · [Profiles](#profiles) · [Data, licences and disclosure](#data-licences-and-disclosure).
-Fitting your own profile: [docs/pipeline.md](docs/pipeline.md). Validation and code provenance:
-[docs/validation.md](docs/validation.md).
-
-## Setup
-
-You need Python 3.9 or later. The corruptor uses the standard library only, so the basic install has no
-dependencies. Install into a virtual environment from the `package` folder (or from the wheel, if you were given one).
-
-Windows (PowerShell):
-
-```powershell
-cd UPRN_corrupt_address_study
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install .\package                        # or: pip install address_errors-0.1.0-py3-none-any.whl
-address-errors profile-info                  # prints the bundled profile: "status": "all_councils", styles wigan ... cornwall
-```
-
-macOS or Linux:
+Training a new empirical error profile is a separate, advanced workflow. It needs paired reference and recorded
+addresses whose correspondence you trust; the supplied OS workflow uses UPRNs for that pairing.
 
 ```bash
-cd UPRN_corrupt_address_study
-python3 -m venv .venv && source .venv/bin/activate
-pip install ./package
-address-errors profile-info
+pip install address-errors
+address-errors corrupt --components example --seed 1 --output demo.csv
 ```
 
-Optional extras, only needed for the pipeline steps in [docs/pipeline.md](docs/pipeline.md):
+The second line corrupts a bundled, invented town of 261 addresses, so you can see the output before you use any of
+your own data.
 
-| Extra | Adds | For |
+Status, 16 October 2026: **version 0.1.1** (documentation and metadata update of 0.1.0; the generator is unchanged).
+
+Contents: [What you need](#what-you-need) · [Corrupt your own addresses](#corrupt-your-own-addresses) ·
+[Quick example](#quick-example) · [Controls](#controls) · [Output](#output-truth-table-and-audit) ·
+[Starting from an OS NGD order](#starting-from-an-os-ngd-order) · [House style and rates](#house-style-and-rates) ·
+[What it reproduces](#what-it-reproduces) · [How well it works](#how-well-it-works) · [Profiles](#profiles) ·
+[Training your own profile](#training-your-own-profile-advanced) · [Data, licences and disclosure](#data-licences-and-disclosure).
+
+## What you need
+
+| You want to... | Input | UPRN needed? |
 |---|---|---|
-| `pip install "./package[pipeline]"` | pandas, numpy, duckdb, rapidfuzz, PyYAML, scipy, scikit-learn | building a reference from an OS order, staging and mining your records, refitting |
-| `pip install "./package[evaluate]"` | pandas, numpy, duckdb, rapidfuzz, PyYAML, lightgbm, scikit-learn | the realism check (real-vs-synthetic discriminator) |
-| `pip install "./package[test]"` | pytest | `pytest package/tests` (invented addresses only) |
+| Corrupt structured addresses | A CSV of address components with any unique record ID ([below](#corrupt-your-own-addresses)) | **No.** Any unique ID works |
+| Corrupt address strings (one free-text field) | Not supported in 0.1.x: split the string into components first. Planned for 0.2 | No |
+| Corrupt a raw OS NGD order | The order's zips, converted with `address-errors build-reference` (`[pipeline]` extra) | Already in the OS data; carried through |
+| Learn an empirical error profile | Paired reference and recorded addresses | Reliable pairing needed; the supplied OS workflow uses UPRNs |
+| Score an address-to-UPRN matcher on the output | Synthetic queries, a reference with UPRNs, the retained truth | Yes, for that evaluation only |
 
-If `address-errors` is not found after installing, the virtual environment is not active; `python -m
-address_errors.cli profile-info` works either way.
+You need Python 3.9 or later. The corruptor uses the standard library only, so `pip install address-errors` has no
+dependencies. If `address-errors` is not found after installing, the environment you installed into is not active;
+`python -m address_errors.cli --help` works either way.
+
+## Corrupt your own addresses
+
+Make a CSV with these columns, one row per address. Empty cells are fine.
+
+| Column | Required | Notes |
+|---|---|---|
+| `uprn` | yes | **Your record ID.** Any unique text: `1`, `patient_0042`, a UPRN. The column name is historical; 0.2 will accept `source_record_id` |
+| `subname` | yes | sub-building, e.g. `FLAT 2` |
+| `name` | yes | building name, e.g. `ROSE COTTAGE` |
+| `number` | yes | building number, e.g. `18`, `18A`, `18-20` |
+| `streetname` | yes | |
+| `townname` | yes | |
+| `postcode`, `locality` | no | postcode errors, rural/urban context, locality edits |
+| `parentuprn` | no | the record ID of the building a flat sits in (your own IDs again). Enables building-level conventions and parent/sibling label drift |
+| `usrn` | no | any street identifier. Enables neighbour label drift |
+
+UPRNs are treated as text throughout; never cast IDs to numbers.
+
+Example (`my_addresses.csv`, invented addresses):
+
+```
+uprn,subname,name,number,streetname,townname,postcode
+rec1,FLAT 2,,18,HIGH STREET,EXAMPLETOWN,ZZ1 2CD
+rec2,,ROSE COTTAGE,,MILL LANE,EXAMPLETOWN,ZZ1 3EF
+rec3,,,7,HIGH STREET,EXAMPLETOWN,ZZ1 2CD
+```
+
+Command line:
+
+```bash
+address-errors corrupt --components my_addresses.csv --seed 1 --output corrupted.csv
+```
+
+Python:
+
+```python
+from address_errors import Profile, Corruptor, Controls, load_components
+
+recs = load_components('my_addresses.csv')            # or example_path() for the invented town
+gen = Corruptor(Profile.load(), seed=1)               # pooled rates of the bundled profile
+gen.index(recs)
+rows = gen.generate([r['uprn'] for r in recs])        # one dict per input record
+print(gen.stats)                                      # records, touched, applied and failed edits
+```
+
+`source_uprn` and `assigned_uprn` in the output hold **your** IDs. Join them back to your data to keep any other
+fields. On the command line, records are taken as residential when `classificationcode` is empty or starts with `R`;
+pass `--uprns ids.txt` (one ID per line) to choose them yourself.
+
+### What changes when you supply less
+
+The corruptor works on whatever you give it, but some mechanisms need information you may not have:
+
+- **No `parentuprn`.** Flats are still recognised from `subname`, but there are no building conventions (all units of a
+  block written the same way) and no parent or sibling label drift.
+- **No `usrn`.** No neighbour label drift.
+- **No `postcode`.** No postcode errors, and every record is treated as urban for its rates.
+- **Collision checks only see your table.** `collision` compares each corrupted dwelling and street with the other
+  rows you supplied. `no_match` on a sample means "no collision with these rows", not "no collision in the real
+  world"; `not_tested` means there was no street to compare. Corrupt a full reference (for example an OS extract)
+  when collisions matter to your benchmark.
+- **Edits that cannot happen are recorded, not hidden.** They appear in `failed_rules`, and `gen.stats` counts them.
 
 ## Quick example
 
-The package ships an invented town of 261 addresses (houses, converted houses, blocks of flats and rural named
-properties; postcodes in the non-existent ZZ area), so you can try it before you have any data.
-
-```bash
-python package/examples/quickstart.py
-```
-
-It loads the default profile, corrupts the town as Leeds records addresses, prints a few changed records, then turns
-two controls. The seed is fixed, so you should see this:
-
-```
-house styles: ['wigan', 'bradford', 'leeds', 'derby', 'cornwall']
-
-253 records; a few that were changed:
-  900000000122  14 CHESTNUT AVENUE, EXAMPLETOWN  ->  2ND FLOOR FLAT 14 CHESTNUT AVENUE NORTHSIDE EXAMPLETOWN   [SU15:subunit_added_on_building_uprn]
-  900000000163  19 DAMSON CLOSE, EXAMPLETOWN     ->  OLD MILL HOUSE 19 DAMSON CLOSE EXAMPLETOWN   [BN1:name_added]
-  900000000175  11 ELDER GROVE, EXAMPLETOWN      ->  THE OLD SCHOOL 11 ELDER GROVE EASTWOOD EXAMPLETOWN   [BN1:name_added]
-  ...
-share of records with a profile error, default:        5.9%
-with Controls(prevalence=2.0):                        16.6%
-extra noise, Controls(noise=Noise(rate=0.3)): 76 records, {'typo': 48, 'abbreviate': 19, 'tokens_joined': 16, 'tokens_swapped': 12}
-pooled rates (unseen source):                         8.7%
-intensity band to report as sensitivity: (0.345, 1.436)
-```
-
-The same in a few lines of Python:
+The invented town has houses, converted houses, blocks of flats and rural named properties, with record IDs from
+`900000000001` and postcodes in the non-existent ZZ area.
 
 ```python
 from address_errors import Profile, Corruptor, Controls, Noise, load_components, example_path
 
 prof = Profile.load()                                     # bundled all-six profile; Profile.load('frozen') for the tested one
-town = load_components(example_path())                   # or your own components table
+town = load_components(example_path())
 gen = Corruptor(prof, style='leeds', seed=1)              # Leeds house style and Leeds rates
 gen.index(town)
-rows = gen.generate([r['uprn'] for r in town])            # one dict per target UPRN: see "Output"
+rows = gen.generate([r['uprn'] for r in town])
+print(gen.stats)
 
 gen = Corruptor(prof, style='leeds', seed=1, controls=Controls(prevalence=2.0, noise=Noise(rate=0.1)))
 ```
 
-And on the command line (`--components example` is the invented town):
+The same on the command line, with tuned controls:
 
 ```bash
 address-errors corrupt --components example --style leeds --seed 1 --output demo.csv
@@ -110,36 +127,8 @@ echo '{"prevalence": 2, "noise": {"rate": 0.1}}' > controls.json
 address-errors corrupt --components example --rates pooled --controls controls.json --output demo_tuned.csv
 ```
 
-The town is small, so its percentages move a lot between seeds. Use a real gazetteer for anything you report.
-
-## Your own addresses
-
-1. **Get clean canonical addresses.** From an OS NGD order (Address GB built address, alternate addresses and Royal
-   Mail tables, as zips), build the components table:
-
-   ```bash
-   address-errors build-reference --os-order OS_data/Wigan --la-gss E08000010 --output ref/wigan
-   ```
-
-   Or bring your own CSV with at least `uprn, subname, name, number, streetname, townname` (see [Input](#input)).
-2. **Pick a house style and rates.** `style` is one of `prof.styles()` (`wigan`, `bradford`, `leeds`, `derby`,
-   `cornwall` Basingstoke'): how that
-   council writes addresses, with its own error rates. For a source the profile has never seen, use
-   `rates='pooled'` (pooled rates at intensity 1.0, the study's setting for unseen councils), and report results
-   across the intensity band `prof.intensity_band()` (0.35 to 1.44 for `all6`; 0.49 to 1.59 for `frozen`). Read the
-   [guidance](#guidance-for-a-new-source) first.
-3. **Generate.** Several independent synthetic sources of the same addresses:
-
-   ```bash
-   address-errors corrupt --components ref/wigan/components.csv.gz --style leeds --n 50000 --copies 3 \
-       --output synthetic.csv.gz
-   ```
-
-4. **Score a matcher** on `recorded_address` and `recorded_postcode`, against `source_uprn` or `assigned_uprn`
-   (see [Output](#output-truth-table-and-audit)).
-
-If you have real records from your source with UPRN labels, you can fit its house style, or check realism, with the
-pipeline: [docs/pipeline.md](docs/pipeline.md).
+At the default settings about 6% of the town's records carry a profile error; `Controls(prevalence=2.0)` gives about
+17%. The town is small, so these percentages move between seeds. Use a full address list for anything you report.
 
 ## Controls
 
@@ -152,7 +141,7 @@ Every default is a no-op: `Controls()` reproduces the profile. Change one at a t
 | `composition` | per-mechanism multipliers by family, ID or subtype, e.g. `{"SU7": 3, "TX": 0}`; it also scales the per-eligible style edits (SU13, SU4, SU9, FM6, SU11, DQ4) |
 | `variation_multiplier`, `error_multiplier` | scale the identity-preserving vs identity-shifting share of each bundle (severity) |
 | `building_conventions` | turn off the one-convention-per-building dependency, and the building-shared style edits and per-record draws |
-| `collision_modifiers` | turn off the collision modifiers (drops land on records whose drop would equal another UPRN at the real rate, and such collisions are kept at the real share) |
+| `collision_modifiers` | turn off the collision modifiers (drops land on records whose drop would equal another address at the real rate, and such collisions are kept at the real share) |
 | `label_drift`, `lb_lambda` | scale the label-drift rate; override the label vs string drift split |
 | `case` (`'upper'`, `'title'`), `commas` (`True`, `False`), `sy1_cap`, `postcode`, `postcode_error_multiplier`, `street_variant_scale` | source-style overrides |
 | `noise` | extra noise beyond the profile: `Noise(rate=0.1, ops={...}, max_ops=2)` (typos, abbreviation, dropped or swapped tokens, joined words). Own random stream, labelled per record |
@@ -174,19 +163,62 @@ On the command line, pass the same fields as JSON: `--controls controls.json`.
 | Column | Meaning |
 |---|---|
 | `recorded_address`, `recorded_postcode` | what a matcher sees |
-| `source_uprn` | the property whose address the string was generated from |
-| `assigned_uprn` | the UPRN the record carries; differs from `source_uprn` only under label drift |
-| `source_style`, `stratum` | house style used; the recipient's dwelling type and rural/urban |
+| `source_uprn` | the input record (your ID) whose address the string was generated from |
+| `assigned_uprn` | the record ID the output carries; differs from `source_uprn` only under label drift |
+| `source_style`, `stratum` | house style used; the record's dwelling type and rural/urban |
 | `touch_route` | `record`, `building_convention`, `building_other`, `record_in_building`, `paf_rendering`, or empty (clean) |
 | `requested_bundle`, `applied_rules`, `failed_rules` | planned edits, edits that happened, edits that could not happen on this record |
-| `label_drift_relation` | `to_neighbour`, `to_parent`, `to_sibling`, ... when the label moved |
+| `label_drift_relation` | `to_neighbour`, `to_parent`, `to_sibling` when the label moved |
 | `postcode_edit` | PC1 to PC5 when the postcode was mis-keyed |
 | `noise_ops` | extra noise operations (only when the noise control is on) |
 | `sy1_truncated` | the string was cut at the source's field length |
-| `collision`, `collision_uprn`, `collision_relation` | does the dwelling + street equal another real UPRN's rendering, and how is it related |
+| `collision`, `collision_uprn`, `collision_relation` | does the corrupted dwelling + street equal another record in the input, which one, and how they are related |
 
-The right answer for a matcher depends on the question: `source_uprn` for "find the property described",
-`assigned_uprn` for "reproduce the register". They differ exactly in the label-drift and collision cases.
+The command line adds `record_id` (one per output row) and `copy`, and prints the run's counts (records, touched,
+applied and failed edits) to standard error.
+
+### What the truth columns mean
+
+`source_uprn` always identifies the input record that was corrupted. That stays true when the corruption removed the
+information needed to identify it (a dropped flat number leaves the building's address) or produced a string equal to
+another address. It does not mean the string still describes that property unambiguously. When you score a matcher,
+use `collision` and `failed_rules` to separate such records and report them on their own. `assigned_uprn` answers a
+different question, "reproduce the register's label"; the two differ only under label drift.
+
+## Starting from an OS NGD order
+
+If you have an OS NGD order (Address GB built address, alternate addresses and Royal Mail tables, as zips), convert it
+to the components table. UPRNs, parent UPRNs, USRNs and the building hierarchy are carried through:
+
+```bash
+pip install "address-errors[pipeline]"
+address-errors build-reference --os-order OS_data/Wigan --la-gss E08000010 --output ref/wigan
+address-errors corrupt --components ref/wigan/components.csv.gz --style leeds --n 50000 --copies 3 --output synthetic.csv.gz
+```
+
+A full reference gives the most complete output: building conventions, label drift and collision checks against every
+address in the area. `--copies` makes several independent synthetic sources of the same addresses. Output built from
+OS data falls under your own OS licence terms.
+
+## House style and rates
+
+`style` is one of `prof.styles()` (`wigan`, `bradford`, `leeds`, `derby`, `cornwall`): how that council writes
+addresses, with its own error rates. With no `style`, or for a source the profile has never seen, use
+`rates='pooled'` (pooled rates at intensity 1.0, the study's setting for unseen councils) and report results across
+the intensity band `prof.intensity_band()` (0.35 to 1.44 for `all6`; 0.49 to 1.59 for `frozen`).
+
+### Guidance for a new source
+
+- **Separators.** Generate and score the same string a matcher will see. If your source has separate fields, decide
+  how they are joined before anything else, or set `Controls(commas=True)` to match. If you compare against real
+  records, check punctuation first: a classifier that wins on commas alone is telling you about your cleaning.
+- **Intensity.** Pooled intensity 1.0 suits a council like the development ones. For a rural or high-error source,
+  measure its touch rate on a labelled sample and set `intensity` (or `prevalence`) to match. Report results across
+  `prof.intensity_band()` either way, and say when your source is outside it.
+- **Same-building sharing.** Results that depend on blocks of flats (sub-unit errors, collisions with the parent
+  building) are the least certain. Report them with `Controls(building_conventions=False)` as a sensitivity.
+- **House style.** With a few thousand labelled records from your source, you can refit its house style against the
+  profile's core ([training your own profile](#training-your-own-profile-advanced)).
 
 ## What it reproduces
 
@@ -202,8 +234,8 @@ truncation (SY1). Each output follows the study's design:
   edits are also shared within a building at the profile's measured concordance.
 - **House style.** Case, commas, which locality, town and county words a source writes, street spelling conventions,
   floor wording, component order, Royal Mail vs NGD rendering.
-- **Label drift.** A small pooled share of clean strings carries a neighbour's, parent's or sibling's UPRN.
-- **Collisions.** Edits that make a string equal another real address (a dropped flat number that leaves the parent
+- **Label drift.** A small pooled share of clean strings carries a neighbour's, parent's or sibling's ID.
+- **Collisions.** Edits that make a string equal another address (a dropped flat number that leaves the parent
   building's address) happen at the real rate.
 - **Systemic truncation (SY1)**, applied last, for single-field sources with a length cap.
 
@@ -213,8 +245,12 @@ conventions per synthetic source so that `--copies` gives each copy its own sour
 
 ## How well it works
 
+Two profiles are bundled. **`all6` (the default)** is fitted on all six study councils (Wigan, Bradford, Leeds,
+Basingstoke and Deane, Derby and Cornwall); its check is leave-one-council-out. **`frozen`** was fixed before an
+external test on two councils it had never seen; the external-test results belong to it.
+
 **Default `all6` profile, leave one council out** (refit on five councils, test on the whole sixth with its own house
-style and pooled rates at intensity 1.0; full table in [docs/loco_results.md](docs/loco_results.md)):
+style and pooled rates at intensity 1.0; full table: [loco_results.md](https://github.com/Jo-Lam/address-errors/blob/main/docs/loco_results.md)):
 
 | Held out | Touch ratio real ÷ synthetic | n-gram AUC | Criteria passed (v2) |
 |---|---|---|---|
@@ -229,13 +265,11 @@ Fitting house style on the joined string removed the comma artefact: Derby's AUC
 external test. Pooled rates fit typical councils; the quietest (Wigan) and noisiest (Cornwall) need their own
 `intensity`. This is not an external test: every fold's profile saw the other five councils.
 
-**Frozen profile, on the development councils** (held-out buildings in Wigan, Bradford, Leeds and Basingstoke), a gradient-boosting
-classifier separates real from synthetic records with AUC 0.65 on all records and 0.83 on records with a
-discrepancy (0.5 means indistinguishable). You can rerun this with `address-errors realism-check`
-([docs/pipeline.md](docs/pipeline.md)).
+**Frozen profile, on the development councils** (held-out buildings in Wigan, Bradford, Leeds and Basingstoke), a
+gradient-boosting classifier separates real from synthetic records with AUC 0.65 on all records and 0.83 on records
+with a discrepancy (0.5 means indistinguishable).
 
-**Frozen profile, on two councils never used in its development**, each run once and pooled rates at intensity
-1.0 (`external_test/RESULTS.md`):
+**Frozen profile, on two councils never used in its development**, each run once with pooled rates at intensity 1.0:
 
 | | Derby (within the development range) | Cornwall (rural, high error: extrapolation) |
 |---|---|---|
@@ -246,37 +280,16 @@ discrepancy (0.5 means indistinguishable). You can rerun this with `address-erro
 | Real-vs-synthetic AUC (n-grams) | 1.00 (fail); 0.56 with commas removed | 1.00; 0.74 with commas removed |
 | Verdict | **fail, 3 of 5 criteria** | no pass claim |
 
-These are the frozen profile's results as they stand; nothing was refitted on either council. What they mean:
+Nothing was refitted on either council. What the results mean:
 
 - **Rates and collisions transfer** to a council like the development ones.
-- **Punctuation does not transfer.** Both AUCs of 1.00 come from commas. The councils' files were delimited, the
-  study's cleaning joined the fields with ", ", and the house-style refit read the raw field, so the real strings
-  had commas that the synthetic ones did not. With commas removed (a post hoc analysis), Derby is harder to tell
-  apart than any development council.
+- **Punctuation does not transfer.** Both AUCs of 1.00 come from commas: the real strings had commas from the study's
+  cleaning that the synthetic ones did not. With commas removed (a post hoc analysis), Derby is harder to tell apart
+  than any development council.
 - **Same-building sharing is the weakest part**, and it varies by council more than the development councils showed.
 - **Rural, high-error councils need their own intensity.** Pooled rates give Cornwall half its real error rate.
 
-### Guidance for a new source
-
-- **Separators.** Generate and score the same string a matcher will see. If your source has separate fields, decide
-  how they are joined before anything else, and fit the house style on that joined string (`stage-records
-  --address-col` once per field does this), or set `Controls(commas=True)` to match. If you compare against real
-  records, check punctuation first: a classifier that wins on commas alone is telling you about your cleaning.
-- **Intensity.** Pooled intensity 1.0 suits a council like the development ones. For a rural or high-error source,
-  measure its touch rate on a labelled sample and set `intensity` (or `prevalence`) to match. Report results across
-  `prof.intensity_band()` either way, and say when your source is outside it.
-- **Same-building sharing.** Results that depend on blocks of flats (sub-unit errors, collisions with the parent
-  building) are the least certain. Report them with `Controls(building_conventions=False)` as a sensitivity.
-- **House style.** With a few thousand labelled records from your source, refit its house style against the
-  profile's core (`fit-house-style`, [docs/pipeline.md](docs/pipeline.md)). This is the cheapest route and keeps everything else
-  as validated.
-
-## Input
-
-`load_components(path)` reads `components.csv.gz` from `build-reference`, or your own CSV with at least
-`uprn, subname, name, number, streetname, townname` (also used if present: `locality, postcode, parentuprn,
-rootuprn, usrn, classificationcode, floorlevel, organisationname, easting, northing` and the Royal Mail `rm_*`
-fields). Missing typing columns are derived. UPRNs are text throughout; never cast them to numbers.
+Validation detail and code provenance: [validation.md](https://github.com/Jo-Lam/address-errors/blob/main/docs/validation.md).
 
 ## Profiles
 
@@ -284,30 +297,55 @@ fields). Missing typing columns are derived. UPRNs are text throughout; never ca
 Profile.load()                                          # bundled portable profile, fitted on all six councils
 Profile.load('frozen')                                  # bundled portable frozen profile (external-test evidence)
 Profile.load('v2')                                      # bundled portable v2
-Profile.load('profile/frozen_20261013', extras='prototype_loop/run_v3_20261013/style_extras.json')
 Profile.load().with_style('mysource', 'fit/mysource')   # add a house style you refitted
 prof.export_portable('my_portable_profile')             # how the bundled ones were built
 ```
 
-Both profile layouts are read. Profile v2 keys house style by section, then source; v3 keys it by source, so a
-source's whole style can be refitted and swapped in on its own, and adds style rates per eligible record, collision
-modifiers, building-name abbreviations and place text by postcode sector.
+Profile v2 keys house style by section, then source; v3 keys it by source, so a source's whole style can be refitted
+and swapped in on its own, and adds style rates per eligible record, collision modifiers, building-name
+abbreviations and place text by postcode sector.
 
-The **bundled portable profile** contains mechanism IDs, rates, eligibility flags, clustering, label-drift and
-house-style parameters, and generic vocabulary. It contains no address strings. Compared with the full profile it
-leaves out the per-street lookups (other locality text and street spellings per USRN) and place names by postcode
-sector, which are address-level and stay inside the study folder. The v3 profile also ships 67 building-name words
-with their short forms (each seen at least 3 times), flagged for review because a few are distinctive local names.
-Without the lookups, locality text a source adds beyond NGD and PAF is not produced, and street spelling conventions
-are drawn generically. `PORTABLE.json` lists exactly what was removed and what still needs review.
+The **bundled portable profiles** contain mechanism IDs, rates, eligibility flags, clustering, label-drift and
+house-style parameters, and generic vocabulary. They contain **no addresses and no UPRNs**. Compared with the full
+study profile they leave out the per-street lookups (locality text and street spellings per USRN) and place names by
+postcode sector. The v3 profiles also ship building-name words with their short forms (single words, each seen at
+least 3 times). Without the lookups, locality text a source adds beyond NGD and PAF is not produced, and street
+spelling conventions are drawn generically. Each profile's `PORTABLE.json` lists what was removed.
+
+## Training your own profile (advanced)
+
+You only need this to learn how a particular source records addresses. It needs your recorded addresses paired with
+reference addresses you trust. The supplied workflow (`stage-records`, `mine`, `fit-house-style`, `refit-profile`,
+`realism-check`) takes the pairing from UPRN labels against an OS NGD reference. Any reliable pairing would serve in
+principle, but the scripts expect UPRNs.
+
+```bash
+pip install "address-errors[pipeline]"     # staging, mining and refitting
+pip install "address-errors[evaluate]"     # the real-vs-synthetic realism check
+```
+
+Full guide: [pipeline.md](https://github.com/Jo-Lam/address-errors/blob/main/docs/pipeline.md).
 
 ## Data, licences and disclosure
 
 - Rates are **discrepancies under the council's UPRN label**, not verified error rates.
-- Fitted on Wigan, Bradford, Leeds (OGL) and Basingstoke and Deane. 
-  The bundled profile leaves out its council-level rates and house style, but the pooled and stratum rates (and the
-  intensity band) still include its rows. Confirm its terms before publishing this package outside the study.
+- Council records used, all under the Open Government Licence v3.0:
+  - **Wigan, Bradford, Leeds:** published under OGL; profile development.
+  - **Basingstoke and Deane:** released by the council under OGL v3; profile development.
+  - **Derby:** the council confirms that information it owns is available for reuse under OGL, with no separate
+    reuse request needed (FOI938460154, 18 August 2026); external test and the `all6` refit.
+  - **Cornwall:** the council states that its Council Tax dataset is open data under OGL; external test and the
+    `all6` refit.
+
+  The bundled profiles hold aggregated parameters only; Basingstoke and Deane's council-level house style is not
+  bundled.
+- The study uses these records to estimate address discrepancy patterns and to evaluate linkage. Third-party address
+  rights, and publication of outputs derived using OS reference data, remain subject to clarification under the
+  project's OS agreement.
+- Contains public sector information licensed under the Open Government Licence v3.0
+  (https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/), from Wigan, Bradford, Leeds,
+  Basingstoke and Deane, Derby and Cornwall councils.
 - Contains OS data © Crown copyright and database rights 2026; Royal Mail data © Royal Mail copyright and database
-  right 2026; GeoPlace data © Local Government Information House Limited copyright and database right 2026. The
-  bundled profile holds aggregated parameters only. The example town is invented.
-- Address-level outputs built from OS data fall under your own OS licence terms.
+  right 2026; GeoPlace data © Local Government Information House Limited copyright and database right 2026.
+- The example town is invented: its addresses, record IDs and ZZ postcodes do not exist.
+- Address-level outputs you build from OS data fall under your own OS licence terms.

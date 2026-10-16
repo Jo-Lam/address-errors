@@ -1,7 +1,7 @@
-"""Quick example: corrupt the bundled invented town with the frozen profile, then turn two controls.
+"""Quick example: corrupt the bundled invented town with the default (all6) profile, then turn two controls.
 
-    pip install ./package
-    python package/examples/quickstart.py
+    pip install address-errors
+    python examples/quickstart.py
 
 Runs in a few seconds with the standard library only. Nothing here is a real address.
 """

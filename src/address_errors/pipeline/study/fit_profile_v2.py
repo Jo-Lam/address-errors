@@ -10,8 +10,8 @@ Design: ../DESIGN.md section 14. Changes from v1 (code/fit_profile_v1.py, kept u
     expanded, words dropped/added, PAF thoroughfare, spelling), as a per-street convention. Lookup per USRN is
     non-portable.
   * Locality choice: patterns also conditioned on whether PAF has a dependent locality; "other" place text
-    excludes building, sub-unit and organisation names written after the street (the "APPLETON COURT APPLETON
-    COURT" bug) and keeps up to three texts per street.
+    excludes building, sub-unit and organisation names written after the street (the repeated building name
+    bug) and keeps up to three texts per street.
   * PAF rendering: how often a council writes the dwelling as PAF (Royal Mail) has it where PAF and NGD differ.
   * Floor wording by floor level, with bracket share.
   * Realisation hints for subtypes whose name hides what the string shows (PN3:number_replaced = number written
@@ -406,7 +406,7 @@ def realisation_hints(study):
                 sh['by_words' if re.search(r'[A-Z]{2,}|\bW\b', ins) else ('by_number' if re.search(r'\d|\bN\b', ins) else 'unknown')] += float(e['w'])
     t = sum(sh.values())
     return {'PN3:number_replaced': {'shares': {k: round(v / t, 3) for k, v in sh.items()},
-                                    'note': 'Mostly the house number written as a name ("THE BUNGALOW HOVINGHAM AVENUE" for "1A HOVINGHAM AVENUE"). '
+                                    'note': 'Mostly the house number written as a name ("THE COTTAGE EXAMPLE ROAD" for "1A EXAMPLE ROAD"; a made-up illustration). '
                                             'Realise as: number dropped and a name added (real name if the record has one, else generic). '
                                             'The miner labels these PN4:number_dropped.'}}
 

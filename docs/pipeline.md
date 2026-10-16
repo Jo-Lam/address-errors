@@ -5,8 +5,8 @@ UPRN labels** (a council tax or electoral register, a service's client records) 
 records addresses, refit its house style, or check how realistic the synthetic output is. Install the extras first:
 
 ```bash
-pip install "./package[pipeline]"     # steps 1 to 5
-pip install "./package[evaluate]"     # step 6
+pip install "address-errors[pipeline]"     # steps 1 to 5
+pip install "address-errors[evaluate]"     # step 6
 ```
 
 | Step | Command | Status |
